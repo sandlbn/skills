@@ -131,6 +131,12 @@
   intel-hw-class: "cpu"
   intel-source-ledger: "skills/onetbb-quickstart/references/official-sources.md"
 
+- name: sycl-tla-quickstart
+  maintainer: "mspoczynski"
+  intel-products: "sycl-tla, Intel Arc, Intel Data Center GPU Crescent Island"
+  intel-hw-class: "gpu"
+  intel-source-ledger: "skills/sycl-tla-quickstart/references/official-sources.md"
+
 # The three entries below are copies of one upstream repository, intel/intel-performance-skills,
 # MIT, pinned at e9d0b6410fb1. Three skills there, so three entries here: one locally
 # invented name covering them would merge three routing decisions into one.
