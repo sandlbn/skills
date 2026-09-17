@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -36,7 +36,7 @@ jobs:
       # beyond an interpreter — but pin the version rather than take whatever the
       # runner image happens to ship, so a change in the image cannot quietly
       # change what the gate ran on.
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
 
@@ -46,10 +46,38 @@ jobs:
       - name: Eval schema
         run: python3 tools/run_evals.py --validate
 
+      # First, because a gate is worth what the detector behind it is worth and every way
+      # this one can break is silent: a regex that stops matching reports a clean zero for
+      # every task, which reads exactly like a repository whose tasks are all sound. So it
+      # asserts itself against the skills and tasks in this tree — that a dotted call, a
+      # `::` call and a keyword argument are all still seen, that an alias bound twice
+      # keeps both meanings, that one more given-away symbol costs one point and a pasted
+      # line costs three, and that the budget below is still the worst task's score. Same
+      # reason the install job asserts that `verify` refuses a skill that was altered.
+      - name: Task leakage detector still detects
+        run: python3 tools/lint_task_leakage.py --self-test
+
+      # Static, stdlib, no container and no credential, so it belongs with the level 1
+      # gate rather than with the harbor jobs it reasons about. It fails a task whose
+      # instruction hands over the API symbols its own skill teaches: both arms of the
+      # differential then read the answer out of the prompt, so the task cannot
+      # discriminate — at the same price as one that can.
+      #
+      # 5 is the score of the worst task in the tree today. The budget is a ratchet
+      # rather than a target: it blocks a task worse than the worst one already here,
+      # grandfathers the twelve that leak, and comes down as those are rewritten — the
+      # self-test above fails if it does not. Because the score is an intersection, a
+      # pull request that only adds to a skill can turn one of them red; that is the
+      # check working, since a task stops discriminating when the skill grows into it.
+      - name: Task leakage
+        run: python3 tools/lint_task_leakage.py --fail-on-leak 5
+
       # Its own step because it is the one check that depends on someone else's
       # server. A 404 or 410 fails it — that is a pointer an agent would follow
-      # into nothing. A timeout, a 5xx, or rate limiting only warns, so an outage
-      # somewhere on the internet cannot hold a contributor's pull request.
+      # into nothing — unless the link came from an imported body, where it warns
+      # instead, because the repair has to land upstream and arrive through a moved
+      # pin. A timeout, a 5xx, or rate limiting only warns, so an outage somewhere on
+      # the internet cannot hold a contributor's pull request.
       - name: Link check
         run: python3 tools/validate_skills.py --check-links
 
@@ -60,7 +88,13 @@ jobs:
       # the commit under the pin, and both mean this repository publishes something
       # nobody reviewed. Upstream being unreachable only warns, for the same reason
       # the link check does.
+      #
+      # if: always() because these two checks are independent and this one is the more
+      # serious of the pair. Without it a dead link upstream — someone else's edit, on
+      # someone else's schedule — decides whether this repository ever finds out that
+      # what it publishes stopped matching what was reviewed.
       - name: Imported skills match their pinned upstream
+        if: always()
         run: python3 tools/sync_external.py --check
 
   # Kept apart from `validate` because it is the only job that needs node, and because
@@ -71,15 +105,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '20'
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
 

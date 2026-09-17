@@ -1,9 +1,9 @@
 # Maintainers
 
 Everything this repository can do beyond merging a skill. Nothing here is asked of a
-contributor: [README.md](README.md) states the whole merge bar, and this file describes
-what happens after — how a skill earns `validated`, what the measurement machinery is,
-and what is deliberately not measured.
+contributor: [CONTRIBUTING.md](CONTRIBUTING.md) states the whole merge bar, and this file
+describes what happens after — how a skill earns `validated`, what the measurement
+machinery is, and what is deliberately not measured.
 
 If you are contributing a skill, you do not need this file.
 
@@ -19,7 +19,7 @@ If you are contributing a skill, you do not need this file.
 | `skills/<name>/.source.json` | present when the skill was imported: upstream repo, path, commit |
 | `skills.yaml` | the catalog. Maintainer, status, and the optional Intel product fields |
 | `evaluation/harbor/` | the task suites, the runner config, and the suite policy |
-| `templates/` | starting points: `SKILL.md`, `task_example.md`, `evals.json`, `perf/` |
+| `templates/` | starting points: `SKILL.template.md`, `task_example.md`, `evals.json`, `perf/` |
 | `schemas/` | JSON Schema for the files that have one |
 | `tools/` | every check, all stdlib-only Python, all runnable offline |
 | `bin/intel-skills.mjs` | the installer `npx github:intel/skills` runs. Node 20+, no dependencies |
@@ -55,8 +55,9 @@ commit still resolves.
 
 `python3 tools/validate_skills.py`. Keyless, offline, runs on every pull request
 including from a fork, and is the only level that can block a merge. What it enforces is
-in the README; what it reports without blocking is dead links and the coverage gaps
-between what a suite claims and what it implements.
+in CONTRIBUTING.md; what it reports without blocking is a dead link in an imported body — a
+dead link in a skill written here fails — and the coverage gaps between what a suite
+claims and what it implements.
 
 Two things it deliberately does not do. It does not check that `SKILL.md` carries no
 measured numbers — that rule is enforced by review, because a validator cannot tell a
@@ -97,7 +98,10 @@ can reproduce is not evidence.
 are at the ceiling and cannot show a delta in either direction. Such tasks are marked
 `calibration: "ceiling"` in `suites.json` and no skill may cite an improvement from that
 run. `tools/lint_task_leakage.py` ranks how much of a task's answer its own instruction
-leaks, which is the usual cause.
+leaks, which is the usual cause, and `validate.yml` blocks above 5 — the score of the worst
+task in the tree, so the gate holds the line rather than clearing it. A task under the
+budget can still sit at a ceiling: leakage is necessary, not sufficient, and only the
+no-skill arm settles it.
 
 Before trusting a suite, run it against a deliberately falsified copy of the skill as one
 arm. A suite that scores a lying skill as highly as the real one is inert. Two cautions
@@ -206,13 +210,21 @@ otherwise point at upstream's layout and resolve to nothing once the skill is in
 Every file it touches is listed in `.source.json` under `modified-files` and carries a
 one-line notice saying so, and the validator fails if either is missing.
 
+That is also why two checks report an imported body as a warning where they would fail a
+skill written here: an unmentioned file, and a link that has gone 404. Both name a real
+defect and neither can be fixed in this repository — editing the body breaks the
+byte-compare in `sync_external.py --check`, which is the thing that proves the copy is
+still what was reviewed. The route is a pull request upstream, then move
+`external-commit` and re-run `--write`. A warning that outlives a release is worth
+raising with the upstream maintainer rather than living with; if upstream will not take
+the fix, the pin is the wrong pin.
+
 ## CI
 
 | Workflow | Job | Runs on | Blocks? |
 |---|---|---|---|
-| `validate.yml` | `validate` — `validate_skills.py`, `run_evals.py --validate`, link check | every PR | yes |
+| `validate.yml` | `validate` — `validate_skills.py`, `run_evals.py --validate`, task leakage and its self-test, link check | every PR | yes |
 | `validate.yml` | `install` — the installer resolves, lists, and installs from the catalog | every PR | yes |
-| `dco.yml` | sign-off on every non-merge commit, failing by commit SHA | every PR | yes |
 | `harbor-smoke.yml` | the oracle arm over every task in `tasks/` | PRs touching tasks or skills | yes |
 | `security.yml` | `actionlint`, `zizmor` | every PR | yes |
 | `codeql.yml` | code scanning, Python | PRs, push, weekly | reports |
@@ -251,7 +263,7 @@ network and both say so when they cannot: `validate_skills.py --check-links` and
 | `run_evals.py` | validates eval files against their schema; scores recorded answers |
 | `compare_harbor_skill.py` | runs and reports the three-arm differential, with cost and time |
 | `check_harbor_job.py` | asserts a harbor run's trial count and reward floor |
-| `lint_task_leakage.py` | ranks how much of its own answer each task's instruction leaks |
+| `lint_task_leakage.py` | ranks how much of its own answer each task's instruction leaks; blocks above 5 in CI, and `--self-test` asserts against this tree that the detector behind that number still detects |
 | `behavior_digest.py` | digests the skill bytes a measurement was taken against, so a later edit to `SKILL.md` cannot leave `perf/` describing text that no longer exists |
 
 Two more exist for the imported skills: `sync_external.py` regenerates a copy from its pin
