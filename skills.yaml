@@ -404,3 +404,17 @@
   intel-products: "Intel GPU, Intel Arc Pro, xpu-smi, Level Zero"
   intel-hw-class: "gpu"
   intel-source-ledger: ""
+
+# End of the imported entries. Everything above this line is a pin; the entry below is
+# written here, which is why it carries no external-* fields and ships a Harbor task.
+#
+# A router rather than a skill that does work: it owns the classification an
+# "I want to deploy a model" request needs before any of the twenty skills above can be
+# the right one, and hands off. It states no image tag, serve flag or environment
+# variable of its own — those drift in the runtime skills, and a second copy here would
+# drift against them. intel-products is the one term its description has to carry, and
+# deliberately not a SKU list: the router routes by request shape, not by part.
+- name: ai-inference-deploy
+  maintainer: "sandlbn"
+  intel-products: "Intel GPU"
+  intel-hw-class: "gpu"
